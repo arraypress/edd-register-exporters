@@ -1,0 +1,48 @@
+{
+  "name": "arraypress/edd-register-exporters",
+  "version": "1.0.0",
+  "description": "A library for easily registering custom exporters in Easy Digital Downloads",
+  "type": "library",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://github.com/arraypress/edd-register-exporters/",
+  "authors": [
+    {
+      "name": "David Sherlock",
+      "homepage": "https://arraypress.com/"
+    }
+  ],
+  "require": {
+    "php": ">=7.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "ArrayPress\\EDD\\Register\\Export\\": "src/"
+    },
+    "files": [
+      "src/Utilities.php"
+    ]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "preferred-install": "dist"
+  },
+  "minimum-stability": "stable",
+  "support": {
+    "issues": "https://github.com/arraypress/edd-register-exporters/issues",
+    "source": "https://github.com/arraypress/edd-register-exporters"
+  },
+  "keywords": [
+    "wordpress",
+    "easy-digital-downloads",
+    "edd",
+    "exports",
+    "exporters",
+    "csv",
+    "admin",
+    "reports",
+    "management",
+    "batch-processing",
+    "data-export"
+  ]
+}
