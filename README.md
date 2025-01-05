@@ -102,7 +102,7 @@ register_batch_exporters($exporters, dirname(__FILE__) . '/exporters');
 For more control, you can use the classes directly:
 
 ```php
-use ArrayPress\EDD\Register\Export\{BatchExporters, Metaboxes};
+use ArrayPress\EDD\Register\Export\{\BatchExporters,\Metaboxes};
 
 // Get the exporters instance
 $exporters = BatchExporters::instance();

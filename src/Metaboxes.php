@@ -531,4 +531,5 @@ class Metaboxes {
 
 		return $instance;
 	}
+
 }
