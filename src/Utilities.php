@@ -142,11 +142,6 @@ if ( ! function_exists( __NAMESPACE__ . '\\register_exporters' ) ):
 	 * @return array Array containing [Metaboxes, BatchExporters] instances
 	 */
 	function register_exporters( array $metaboxes, ?string $base_path = null ): array {
-		// Set default base path if not provided
-		if ( is_null( $base_path ) ) {
-			$base_path = defined( 'EDD_PLUGIN_DIR' ) ? EDD_PLUGIN_DIR : dirname( __DIR__, 2 );
-		}
-
 		// Initialize instances
 		$metaboxes_instance = metaboxes();
 		$exporters_instance = batch_exporters();
