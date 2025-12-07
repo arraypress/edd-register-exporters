@@ -95,18 +95,17 @@ class Exporters {
             }
 
             $validated_export = [
-                    'id'    => $key,
-                    'class' => $export['class'],
-                    'file'  => $export['file'],
-                    'title' => $export['title'] ?? ucwords( str_replace( '-', ' ', $key ) ),
-                    'label' => $export['label'] ?? ucwords( str_replace( '-', ' ', $key ) ),
+                    'id'          => $key,
+                    'class'       => $export['class'],
+                    'file'        => $export['file'],
+                    'title'       => $export['title'] ?? ucwords( str_replace( '-', ' ', $key ) ),
+                    'label'       => $export['label'] ?? ucwords( str_replace( '-', ' ', $key ) ),
+                    'description' => $export['description'] ?? '',
+                    'priority'    => $export['priority'] ?? 60,
+                    'button'      => $export['button'] ?? __( 'Generate CSV', 'arraypress' ),
             ];
 
             // Optional metabox fields
-            if ( isset( $export['description'] ) ) {
-                $validated_export['description'] = $export['description'];
-            }
-
             if ( isset( $export['fields'] ) && is_array( $export['fields'] ) ) {
                 $validated_export['fields'] = $export['fields'];
             }
@@ -126,7 +125,7 @@ class Exporters {
     /**
      * Initialize the batch exporters registration.
      *
-     * Sets up WordPress hooks for handling export class inclusion and metabox rendering.
+     * Sets up WordPress hooks for handling export registration and field rendering.
      *
      * @return void
      */
@@ -135,8 +134,8 @@ class Exporters {
             return;
         }
 
-        add_action( 'edd_batch_export_class_include', [ $this, 'include_export_class' ] );
-        add_action( 'edd_reports_tab_export_content_bottom', [ $this, 'render_metaboxes' ] );
+        add_action( 'edd_export_init', [ $this, 'register_exporters' ] );
+        add_action( 'edd_export_form', [ $this, 'render_fields' ], 10, 2 );
 
         if ( function_exists( 'edd_debug_log' ) ) {
             edd_debug_log( sprintf( '[EDD Batch Exporters] Initialized %d batch exporters', count( $this->exports ) ) );
@@ -144,81 +143,51 @@ class Exporters {
     }
 
     /**
-     * Include the batch export class file.
+     * Register exporters with the EDD Registry.
      *
-     * Called by EDD when a batch export is requested. Includes the appropriate
-     * class file based on the class name being requested.
+     * Called by EDD during export initialization to register all exporters
+     * with the central registry system.
      *
-     * @param string $class The class being requested to run for the batch export.
+     * @param \EDD\Admin\Exports\Registry $registry The EDD export registry instance.
      *
      * @return void
      */
-    public function include_export_class( string $class ): void {
-        foreach ( $this->exports as $export ) {
-            if ( $export['class'] === $class && ! empty( $export['file'] ) ) {
-                $file = $this->get_full_file_path( $export['file'] );
-                if ( file_exists( $file ) ) {
-                    require_once $file;
-                } else {
-                    if ( function_exists( 'edd_debug_log' ) ) {
-                        edd_debug_log( sprintf( '[EDD Batch Exporters] File not found: %s', $file ), true );
-                    }
+    public function register_exporters( $registry ): void {
+        foreach ( $this->exports as $key => $export ) {
+            try {
+                $registry->register_exporter( $key, [
+                        'label'       => $export['label'] ?? $export['title'],
+                        'description' => $export['description'] ?? '',
+                        'class'       => $export['class'],
+                        'class_path'  => $this->get_full_file_path( $export['file'] ),
+                        'priority'    => $export['priority'] ?? 60,
+                        'button'      => $export['button'] ?? __( 'Generate CSV', 'arraypress' ),
+                ] );
+            } catch ( \Exception $e ) {
+                if ( function_exists( 'edd_debug_log' ) ) {
+                    edd_debug_log( sprintf( '[EDD Batch Exporters] Failed to register exporter "%s": %s', $key, $e->getMessage() ), true );
                 }
-                break;
             }
         }
     }
 
     /**
-     * Render all registered metaboxes.
+     * Render custom fields for an exporter.
      *
-     * Renders metaboxes on the EDD Reports > Export page for all registered exports.
-     * Exports without fields will show just a title, description, and export button.
+     * Called via the edd_export_form action to render any custom fields
+     * defined for the exporter.
+     *
+     * @param string $exporter_id The ID of the exporter being rendered.
+     * @param array  $exporter    The exporter configuration array.
      *
      * @return void
      */
-    public function render_metaboxes(): void {
-        foreach ( $this->exports as $export ) {
-            $this->render_single_metabox( $export );
+    public function render_fields( string $exporter_id, array $exporter ): void {
+        if ( isset( $this->exports[ $exporter_id ]['fields'] ) && is_array( $this->exports[ $exporter_id ]['fields'] ) ) {
+            foreach ( $this->exports[ $exporter_id ]['fields'] as $field ) {
+                $this->render_field( $field );
+            }
         }
-    }
-
-    /**
-     * Render a single metabox.
-     *
-     * Generates the HTML for a single export metabox including the title,
-     * description, form fields (if any), and submit button.
-     *
-     * @param array $export Export configuration array.
-     *
-     * @return void
-     */
-    private function render_single_metabox( array $export ): void {
-        ?>
-        <div class="postbox edd-export-<?php echo esc_attr( $export['id'] ); ?>">
-            <h2 class="hndle"><span><?php echo esc_html( $export['title'] ); ?></span></h2>
-            <div class="inside">
-                <?php if ( ! empty( $export['description'] ) ) : ?>
-                    <p><?php echo esc_html( $export['description'] ); ?></p>
-                <?php endif; ?>
-                <form id="edd-export-<?php echo esc_attr( $export['id'] ); ?>"
-                      class="edd-export-form edd-import-export-form" method="post">
-                    <?php
-                    // Render fields if they exist
-                    if ( ! empty( $export['fields'] ) && is_array( $export['fields'] ) ) {
-                        foreach ( $export['fields'] as $field ) {
-                            $this->render_field( $field );
-                        }
-                    }
-                    wp_nonce_field( 'edd_ajax_export', 'edd_ajax_export' );
-                    ?>
-                    <input type="hidden" name="edd-export-class" value="<?php echo esc_attr( $export['class'] ); ?>"/>
-                    <button type="submit"
-                            class="button button-secondary"><?php esc_html_e( 'Generate CSV', 'arraypress' ); ?></button>
-                </form>
-            </div>
-        </div>
-        <?php
     }
 
     /**
