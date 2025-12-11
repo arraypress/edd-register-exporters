@@ -1,6 +1,6 @@
 # EDD Register Custom Exporters
 
-Register custom batch export classes with metabox forms for Easy Digital Downloads export system.
+Register custom batch export classes with metabox forms for Easy Digital Downloads 3.0+ export system.
 
 ## Installation
 
