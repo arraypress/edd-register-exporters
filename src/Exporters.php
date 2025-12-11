@@ -85,7 +85,7 @@ class Exporters {
                 );
             }
 
-            // Verify export class file exists
+            // Verify export class file exists.
             $file = $this->get_full_file_path( $export['file'] );
             if ( ! file_exists( $file ) ) {
                 return new WP_Error(
@@ -105,7 +105,7 @@ class Exporters {
                     'button'      => $export['button'] ?? __( 'Generate CSV', 'arraypress' ),
             ];
 
-            // Optional metabox fields
+            // Optional metabox fields.
             if ( isset( $export['fields'] ) && is_array( $export['fields'] ) ) {
                 $validated_export['fields'] = $export['fields'];
             }
@@ -114,10 +114,6 @@ class Exporters {
         }
 
         $this->exports = array_merge( $this->exports, $validated_exports );
-
-        if ( function_exists( 'edd_debug_log' ) ) {
-            edd_debug_log( sprintf( '[EDD Batch Exporters] Registered %d batch exporters', count( $validated_exports ) ) );
-        }
 
         return true;
     }
@@ -136,10 +132,6 @@ class Exporters {
 
         add_action( 'edd_export_init', [ $this, 'register_exporters' ] );
         add_action( 'edd_export_form', [ $this, 'render_fields' ], 10, 2 );
-
-        if ( function_exists( 'edd_debug_log' ) ) {
-            edd_debug_log( sprintf( '[EDD Batch Exporters] Initialized %d batch exporters', count( $this->exports ) ) );
-        }
     }
 
     /**
@@ -194,7 +186,8 @@ class Exporters {
      * Render a single form field.
      *
      * Renders different types of form fields based on the field type.
-     * Supports customer, product, country, date, and other field types.
+     * Supports select, customer, product, user, category, discount,
+     * country, region, date, and other field types.
      *
      * @param array $field Field configuration array containing type, id, name, etc.
      *
@@ -215,20 +208,32 @@ class Exporters {
         }
 
         switch ( strtolower( $field['type'] ) ) {
+            case 'select':
+                $this->render_select_field( $field );
+                break;
             case 'customer':
                 $this->render_customer_field( $field );
                 break;
             case 'product':
                 $this->render_product_field( $field );
                 break;
+            case 'user':
+                $this->render_user_field( $field );
+                break;
+            case 'category':
+                $this->render_category_field( $field );
+                break;
+            case 'discount':
+                $this->render_discount_field( $field );
+                break;
             case 'country':
                 $this->render_country_field( $field );
                 break;
-            case 'order_statuses':
-                $this->render_order_statuses_field( $field );
-                break;
             case 'region':
                 $this->render_region_field( $field );
+                break;
+            case 'order_statuses':
+                $this->render_order_statuses_field( $field );
                 break;
             case 'date':
                 $this->render_date_field( $field );
@@ -259,6 +264,33 @@ class Exporters {
      */
     private function get_full_file_path( string $file ): string {
         return $this->base_path ? trailingslashit( $this->base_path ) . $file : $file;
+    }
+
+    /**
+     * Render select dropdown field.
+     *
+     * Renders a select dropdown with full control over options.
+     *
+     * @param array $field Field configuration array.
+     *
+     * @return void
+     */
+    private function render_select_field( array $field ): void {
+        $defaults = [
+                'id'               => '',
+                'name'             => '',
+                'options'          => [],
+                'selected'         => '',
+                'chosen'           => false,
+                'placeholder'      => '',
+                'show_option_all'  => false,
+                'show_option_none' => false,
+                'multiple'         => false,
+                'class'            => '',
+        ];
+
+        $args = wp_parse_args( $field, $defaults );
+        echo EDD()->html->select( $args );
     }
 
     /**
@@ -303,6 +335,68 @@ class Exporters {
 
         $args = wp_parse_args( $field, $defaults );
         echo EDD()->html->customer_dropdown( $args );
+    }
+
+    /**
+     * Render user dropdown field.
+     *
+     * Renders a user selection dropdown using EDD's built-in user dropdown.
+     *
+     * @param array $field Field configuration array.
+     *
+     * @return void
+     */
+    private function render_user_field( array $field ): void {
+        $defaults = [
+                'id'          => 'edd_export_user',
+                'name'        => 'user_id',
+                'chosen'      => true,
+                'multiple'    => false,
+                'placeholder' => __( 'All Users', 'arraypress' ),
+        ];
+
+        $args = wp_parse_args( $field, $defaults );
+        echo EDD()->html->user_dropdown( $args );
+    }
+
+    /**
+     * Render category dropdown field.
+     *
+     * Renders a download category selection dropdown.
+     *
+     * @param array $field Field configuration array.
+     *
+     * @return void
+     */
+    private function render_category_field( array $field ): void {
+        $defaults = [
+                'name'     => 'category',
+                'selected' => 0,
+        ];
+
+        $args = wp_parse_args( $field, $defaults );
+        echo EDD()->html->category_dropdown( $args['name'], $args['selected'] );
+    }
+
+    /**
+     * Render discount dropdown field.
+     *
+     * Renders a discount selection dropdown using EDD's built-in discount dropdown.
+     *
+     * @param array $field Field configuration array.
+     *
+     * @return void
+     */
+    private function render_discount_field( array $field ): void {
+        $defaults = [
+                'id'       => 'edd_export_discount',
+                'name'     => 'discount',
+                'selected' => 0,
+                'status'   => '',
+        ];
+
+        $args = wp_parse_args( $field, $defaults );
+        echo EDD()->html->discount_dropdown( $args );
     }
 
     /**
@@ -383,10 +477,11 @@ class Exporters {
         ?>
         <fieldset class="edd-from-to-wrapper">
             <legend class="screen-reader-text"><?php echo esc_html( $field['legend'] ?? '' ); ?></legend>
-            <label for="<?php echo esc_attr( $field['id'] ); ?>-start"
-                   class="screen-reader-text"><?php esc_html_e( 'Set start date', 'arraypress' ); ?></label>
+            <label for="<?php echo esc_attr( $field['id'] ); ?>-start" class="screen-reader-text">
+                <?php esc_html_e( 'Set start date', 'arraypress' ); ?>
+            </label>
             <span id="edd-<?php echo esc_attr( $field['id'] ); ?>-start-wrap">
-				<?php
+                <?php
                 echo EDD()->html->date_field( [
                         'id'          => $field['id'] . '-start',
                         'class'       => 'edd-export-start',
@@ -394,11 +489,12 @@ class Exporters {
                         'placeholder' => _x( 'From', 'date filter', 'arraypress' ),
                 ] );
                 ?>
-			</span>
-            <label for="<?php echo esc_attr( $field['id'] ); ?>-end"
-                   class="screen-reader-text"><?php esc_html_e( 'Set end date', 'arraypress' ); ?></label>
+            </span>
+            <label for="<?php echo esc_attr( $field['id'] ); ?>-end" class="screen-reader-text">
+                <?php esc_html_e( 'Set end date', 'arraypress' ); ?>
+            </label>
             <span id="edd-<?php echo esc_attr( $field['id'] ); ?>-end-wrap">
-				<?php
+                <?php
                 echo EDD()->html->date_field( [
                         'id'          => $field['id'] . '-end',
                         'class'       => 'edd-export-end',
@@ -406,7 +502,7 @@ class Exporters {
                         'placeholder' => _x( 'To', 'date filter', 'arraypress' ),
                 ] );
                 ?>
-			</span>
+            </span>
         </fieldset>
         <?php
     }
@@ -425,11 +521,13 @@ class Exporters {
         ?>
         <fieldset class="edd-to-and-from-container">
             <legend class="screen-reader-text"><?php echo esc_html( $field['legend'] ?? '' ); ?></legend>
-            <label for="<?php echo esc_attr( $field['id'] ); ?>_month"
-                   class="screen-reader-text"><?php echo esc_html( $field['month_label'] ?? __( 'Select month', 'arraypress' ) ); ?></label>
+            <label for="<?php echo esc_attr( $field['id'] ); ?>_month" class="screen-reader-text">
+                <?php echo esc_html( $field['month_label'] ?? __( 'Select month', 'arraypress' ) ); ?>
+            </label>
             <?php echo EDD()->html->month_dropdown( $field['name'] . '_month', 0, $field['id'], true ); ?>
-            <label for="<?php echo esc_attr( $field['id'] ); ?>_year"
-                   class="screen-reader-text"><?php echo esc_html( $field['year_label'] ?? __( 'Select year', 'arraypress' ) ); ?></label>
+            <label for="<?php echo esc_attr( $field['id'] ); ?>_year" class="screen-reader-text">
+                <?php echo esc_html( $field['year_label'] ?? __( 'Select year', 'arraypress' ) ); ?>
+            </label>
             <?php echo EDD()->html->year_dropdown( $field['name'] . '_year', 0, 5, 0, $field['id'] ); ?>
         </fieldset>
         <?php
@@ -447,7 +545,9 @@ class Exporters {
      */
     private function render_separator( array $field ): void {
         ?>
-        <span class="edd-to-and-from--separator"><?php echo esc_html( $field['text'] ?? _x( '&mdash; to &mdash;', 'Date one to date two', 'arraypress' ) ); ?></span>
+        <span class="edd-to-and-from--separator">
+            <?php echo esc_html( $field['text'] ?? _x( '&mdash; to &mdash;', 'Date one to date two', 'arraypress' ) ); ?>
+        </span>
         <?php
     }
 
